@@ -84,6 +84,18 @@ SAMPLE_DISABLE_CONF = """# disable.conf
 # re:MS(0[7-9]|10)-\d+
 """
 
+SAMPLE_DROP_CONF = """# drop.conf
+
+# Example of setting a rule to deop by signature ID (gid is optional).
+# 1:2019401
+# 2019401
+
+# Example of setting a rule to drop by regular expression.
+# - All regular expression matches are case insensitive.
+# re:hearbleed
+# re:MS(0[7-9]|10)-\d+
+"""
+
 SAMPLE_MODIFY_CONF = """# modify.conf
 
 # Format: <sid> "<from>" "<to>"
@@ -230,6 +242,13 @@ class ModifyRuleFilter(object):
         pattern = re.compile(tokens[1])
         return cls(matcher, pattern, tokens[2])
 
+class ActionRuleFilter:
+    """Filter to change the action of a rule (default: drop)."""
+
+    @classmethod
+    def parse(cls, buf):
+        pass
+    
 class Fetch(object):
 
     def __init__(self, args):
@@ -480,6 +499,7 @@ def dump_sample_configs():
     files = {
         "enable.conf": SAMPLE_ENABLE_CONF,
         "disable.conf": SAMPLE_DISABLE_CONF,
+        "drop.conf": SAMPLE_DROP_CONF,
         "modify.conf": SAMPLE_MODIFY_CONF,
         "threshold.in": SAMPLE_THRESHOLD_IN,
     }
@@ -634,10 +654,12 @@ def main():
                         help="Generate a sid-msg.map file")
     parser.add_argument("--sid-msg-map-2", metavar="<filename>",
                         help="Generate a v2 sid-msg.map file")
-    parser.add_argument("--disable", metavar="<filename>",
-                        help="Filename of disable rule configuration")
     parser.add_argument("--enable", metavar="<filename>",
                         help="Filename of enable rule configuration")
+    parser.add_argument("--disable", metavar="<filename>",
+                        help="Filename of disable rule configuration")
+    parser.add_argument("--drop", metavar="<filename>",
+                        help="Filename of drop rule configuration")
     parser.add_argument("--modify", metavar="<filename>",
                         help="Filename of rule modification configuration")
     parser.add_argument("--threshold-in", metavar="<filename>",
@@ -668,6 +690,7 @@ def main():
     disable_matchers = []
     enable_matchers = []
     modify_filters = []
+    drop_filters = []
 
     if args.disable and os.path.exists(args.disable):
         disable_matchers += load_matchers(args.disable)
@@ -675,6 +698,8 @@ def main():
         enable_matchers += load_matchers(args.enable)
     if args.modify and os.path.exists(args.modify):
         modify_filters += load_filters(args.modify)
+    if args.drop and os.path.exists(args.drop):
+        drop_filters += load_filters(args.drop)
 
     files = Fetch(args).run()
 

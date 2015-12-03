@@ -53,12 +53,12 @@ rule_pattern = re.compile(
     r"^(?P<enabled>#)*\s*"      # Enabled/disabled
     r"(?P<raw>"
     r"(?P<action>%s)\s*"        # Action
-    r"[^\s]*\s*"                # Protocol
-    r"[^\s]*\s*"                # Source address(es)
-    r"[^\s]*\s*"                # Source port
+    r"(?P<proto>[^\s]+)\s*"     # Protocol
+    r"(?P<src_addr>[^\s]+)\s*" # Source address(es)
+    r"(?P<src_port>[^\s]+)\s*" # Source port
     r"(?P<direction>[-><]+)\s*"	# Direction
-    r"[^\s]*\s*"		        # Destination address(es)
-    r"[^\s]*\s*"                # Destination port
+    r"(?P<dest_addr>[^\s]+)\s*"	# Destination address(es)
+    r"(?P<dest_port>[^\s]+)\s*" # Destination port
     r"\((?P<options>.*)\)\s*" 	# Options
     r")"
     % "|".join(actions))

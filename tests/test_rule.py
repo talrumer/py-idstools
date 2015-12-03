@@ -32,6 +32,16 @@ import tempfile
 
 import idstools.rule
 
+# class RuleModifyActionTestCase(unittest.TestCase):
+
+#     def test_modifyAction(self):
+#         rule = idstools.rule.parse("""alert tcp any any -> any any (msg:"Message"; sid:1; rev:1;)""")
+#         self.assertEqual("alert", rule.action)
+#         rule.action = "drop"
+#         self.assertEqual("drop", rule.action)
+#         print(str(rule))
+#         self.assertTrue(str(rule).startswith("drop"))
+
 class RuleTestCase(unittest.TestCase):
 
     def test_parse1(self):
