@@ -36,8 +36,7 @@ duplicate signature IDs.
 """
 
 from __future__ import print_function
-
-import sys
+import json
 import re
 import logging
 
@@ -82,9 +81,38 @@ option_patterns = (
     re.compile("(rev)\s*:\s*(\d+);"),
     re.compile("(metadata)\s*:\s*(.*?);"),
     re.compile("(flowbits)\s*:\s*(.*?);"),
+    re.compile("(flow)\s*:\s*(.*?);"),
     re.compile("(reference)\s*:\s*(.*?);"),
     re.compile("(classtype)\s*:\s*(.*?);"),
     re.compile("(priority)\s*:\s*(.*?);"),
+    re.compile("(content)\s*:\s*(.*?);"),
+    re.compile("(nocase)\s*:\s*(.*?);"),
+    re.compile("(rawbytes)\s*:\s*(.*?);"),
+    re.compile("(offset)\s*:\s*(.*?);"),
+    re.compile("(depth)\s*:\s*(.*?);"),
+    re.compile("(distance)\s*:\s*(.*?);"),
+    re.compile("(within)\s*:\s*(.*?);"),
+    re.compile("(dnp3_cmd_fc)\s*:\s*(\d+);"),
+    re.compile("(threshold)\s*:\s*(.*?);"),
+    re.compile("(pcre)\s*:\s*(.*?);"),
+    re.compile("(dsize)\s*:\s*(.*?);"),
+    re.compile("(byte_jump)\s*:\s*(.*?);"),
+    re.compile("(byte_test)\s*:\s*(.*?);"),
+    re.compile("(isdataat)\s*:\s*(.*?);"),
+    re.compile("(flags)\s*:\s*(.*?);"),
+    re.compile("(dnp3_checksum)\s*:\s*(.*?);"),
+    re.compile("(dnp3_cmd_ot)\s*:\s*(.*?);"),
+    # re.compile("(http_client_body)\s*:\s*(.*?);"),
+    # re.compile("(http_cookie)\s*:\s*(.*?);"),
+    # re.compile("(http_raw_cookie)\s*:\s*(.*?);"),
+    # re.compile("(http_header)\s*:\s*(.*?);"),
+    # re.compile("(http_raw_header)\s*:\s*(.*?);"),
+    # re.compile("(http_method)\s*:\s*(.*?);"),
+    # re.compile("(http_uri)\s*:\s*(.*?);"),
+    # re.compile("(http_raw_uri)\s*:\s*(.*?);"),
+    # re.compile("(http_stat_code)\s*:\s*(.*?);"),
+    # re.compile("(http_stat_msg)\s*:\s*(.*?);"),
+    # re.compile("(fast_pattern)\s*:\s*(.*?);"),
 )
 
 class Rule(dict):
@@ -116,34 +144,55 @@ class Rule(dict):
 
     - **metadata**: Metadata values as a list
 
-    - **references**: References as a list
+    - **reference**: Reference as a string
 
     - **classtype**: The classification type
 
     - **priority**: The rule priority, 0 if not provided
-
+content
     - **raw**: The raw rule as read from the file or buffer
 
     :param enabled: Optional parameter to set the enabled state of the rule
     :param action: Optional parameter to set the action of the rule
     """
 
-    def __init__(self, enabled=None, action=None, group=None):
+    def __init__(self, enabled=None, action=None, group=None ):
         dict.__init__(self)
         self["enabled"] = enabled
         self["action"] = action
         self["direction"] = None
         self["group"] = group
-        self["gid"] = 1
         self["sid"] = None
         self["rev"] = None
         self["msg"] = None,
-        self["flowbits"] = []
-        self["metadata"] = []
-        self["references"] = []
+        self["reference"] = None
         self["classtype"] = None
         self["priority"] = 0
         self["raw"] = None
+        self["content"] = []
+        self["nocase"] = []
+        self["rawbytes"] = []
+        self["offset"] = []
+        self["depth"] = []
+        self["distance"] = []
+        self["within"] = []
+        self["source-ip"] = None
+        self["source-port"] = None
+        self["destination-ip"] = None
+        self["destination-port"] = None
+        self["transport"] = None
+        # self["http_client_body"] = []
+        # self["http_cookie"] = []
+        # self["http_raw_cookie"] = []
+        # self["http_header"] = []
+        # self["http_raw_header"] = []
+        # self["http_method"] = []
+        # self["http_uri"] = []
+        # self["http_raw_uri"] = []
+        # self["http_stat_code"] = []
+        # self["http_stat_msg"] = []
+        # self["fast_pattern"] = []
+
 
     def __getattr__(self, name):
         return self[name]
@@ -180,6 +229,12 @@ class Rule(dict):
         """
         return "%s%s" % ("" if self.enabled else "# ", self.raw)
 
+def isRule(buf):
+    m = rule_pattern.match(buf) or decoder_rule_pattern.match(buf)
+    if not m:
+        return False
+    return True
+
 def parse(buf, group=None):
     """ Parse a single rule for a string buffer.
 
@@ -198,22 +253,140 @@ def parse(buf, group=None):
     rule["direction"] = m.groupdict().get("direction", None)
 
     options = m.group("options")
+
+
     for p in option_patterns:
+
         for opt, val in p.findall(options):
-            if opt in ["gid", "sid", "rev"]:
+        #First if is for value that are saved at the json as INT's (without parenthesis)
+            if opt in ["gid", "sid", "rev", "priority", "dnp3_cmd_fc", "dnp3_cmd_ot"]:
                 rule[opt] = int(val)
-            elif opt == "metadata":
+            elif opt in ["metadata", "flow", "flowbits"]:
                 rule[opt] = [v.strip() for v in val.split(",")]
-            elif opt == "flowbits":
-                rule.flowbits.append(val)
-            elif opt == "reference":
-                rule.references.append(val)
+            elif opt == "content":
+                rule.content.append('\"data\" : ' + val)
+            elif opt == "nocase":
+                rule.nocase.append(','+'nocas : ' + val)
+            elif opt == "rawbytes":
+                rule.rawbytes.append(','+'rawbytes : ' + val)
+            elif opt == "offset":
+                rule.offset.append(','+'\"offset\" : ' + val)
+            elif opt == "depth":
+                rule.depth.append(','+'\"depth\" : ' + val)
+            elif opt == "distance":
+                rule.distance.append(','+'distance : ' + val)
+            elif opt == "within":
+                rule.within.append(','+'within : ' + val)
+            elif opt == "pcre":
+                rule[opt] = val.replace('"', '')
+            elif opt == "dsize":
+                rule[opt] = int(val.replace('>', '').strip())
+            elif opt == "byte_test":
+                bytetestdict = {}
+                vallist = []
+                vallist = val.split(',')
+                for i in xrange(len(vallist)):
+                    vallist[i] = vallist[i].strip()
+                bytetestdict['bytes-to-convert'] =int(vallist[0])
+                bytetestdict['operator'] = vallist[1]
+                bytetestdict['value'] = vallist[2]
+                bytetestdict['offset'] =  int(vallist[3])
+                rule[opt.replace('_','-')] = bytetestdict
+            elif opt == "isdataat":
+                isdataatdict = {}
+                vallist = []
+                vallist = val.split(',')
+                for i in xrange(len(vallist)):
+                    vallist[i] = vallist[i].strip()
+                isdataatdict['value'] = int(vallist[0])
+                if 'relative' in vallist:
+                    isdataatdict['relative'] = True
+                else:
+                    isdataatdict['relative'] = False
+                if 'negative' in vallist:
+                    isdataatdict['negative'] = True
+                else:
+                    isdataatdict['negative'] = False
+                rule[opt] = isdataatdict
+            elif opt == "byte_jump":
+                bytejumpdict = {}
+                vallist = []
+                vallist = val.split(',')
+                for i in xrange(len(vallist)):
+                    vallist[i] = vallist[i].strip()
+                bytejumpdict['bytes-to-convert'] = int(vallist[0])
+                bytejumpdict['offset'] = int(vallist[1])
+                if 'align' in vallist:
+                    bytejumpdict['align'] = True
+                else:
+                    bytejumpdict['align'] = False
+                if 'big' in vallist:
+                    bytejumpdict['big-endian'] = True
+                else:
+                    if 'little' in vallist:
+                        bytejumpdict['big-endian'] = False
+                    else:
+                        bytejumpdict['big-endian'] = True
+                if 'dce' in vallist:
+                    bytejumpdict['dce'] = True
+                else:
+                    bytejumpdict['dce'] = False
+                if 'from_beginning' in vallist:
+                    bytejumpdict['from_beginning'] = True
+                else:
+                    bytejumpdict['from_beginning'] = False
+                if 'relative' in vallist:
+                    bytejumpdict['relative'] = True
+                else:
+                    bytejumpdict['relative'] = False
+                rule[opt.replace('_','')] = bytejumpdict
             else:
                 rule[opt] = val
 
+
     rule["raw"] = m.group("raw").strip()
 
+    for x in xrange(len(rule['content'])):
+
+        if len(rule['nocase']) >= x+1 and len(rule['nocase'][x]) !=0 :
+            rule['content'][x] = rule['content'][x] +' '+ rule['nocase'][x]
+
+        if len(rule['rawbytes']) >= x+1 and len(rule['rawbytes'][x]) !=0:
+            rule['content'][x] = rule['content'][x] +' '+ rule['rawbytes'][x]
+
+        if len(rule['offset']) >= x+1 and len(rule['offset'][x]) !=0:
+            rule['content'][x] = rule['content'][x] +' '+ rule['offset'][x]
+
+        if len(rule['depth']) >= x+1 and len(rule['depth'][x]) !=0:
+            rule['content'][x] = rule['content'][x] +' '+ rule['depth'][x]
+
+        if len(rule['distance']) >= x+1 and len(rule['distance'][x]) !=0:
+            rule['content'][x] = rule['content'][x] +' '+ rule['distance'][x]
+
+        if len(rule['within']) >= x+1 and len(rule['within'][x]) !=0:
+            rule['content'][x] = rule['content'][x] +' '+ rule['within'][x]
+
+    del rule['nocase']
+    del rule['rawbytes']
+    del rule['offset']
+    del rule['depth']
+    del rule['distance']
+    del rule['within']
+
+    params  = removeAfter(buf, "(")
+
+    param_list = params.split()
+
+    rule['transport'] = param_list[1]
+    rule["source-ip"] = param_list[2] 
+    rule["source-port"] =param_list[3]
+    rule["destination-ip"] =param_list[5] 
+    rule["destination-port"] =param_list[6]
+
     return rule
+
+def removeAfter(string, suffix):
+    return string[:string.index(suffix)]
 
 def parse_fileobj(fileobj, group=None):
     """ Parse multiple rules from a file like object.
@@ -225,24 +398,19 @@ def parse_fileobj(fileobj, group=None):
     :returns: A list of :py:class:`.Rule` instances, one for each rule parsed
     """
     rules = []
-    buf = ""
     for line in fileobj:
         try:
             if type(line) == type(b""):
                 line = line.decode()
         except:
             pass
-        if line.rstrip().endswith("\\"):
-            buf = "%s%s " % (buf, line.rstrip()[0:-1])
-            continue
         try:
-            rule = parse(buf + line, group)
+            rule = parse(line, group)
             if rule:
                 rules.append(rule)
         except:
-            logger.error("failed to parse rule: %s" % (buf))
+            logger.error("failed to parse rule: %s" % (line))
             raise
-        buf = ""
     return rules
 
 def parse_file(filename, group=None):
@@ -321,7 +489,7 @@ def enable_flowbit_dependencies(rulemap):
 
 def format_sidmsgmap(rule):
     """ Format a rule as a sid-msg.map entry. """
-    return " || ".join([str(rule.sid), rule.msg] + rule.references)
+    return " || ".join([str(rule.sid), rule.msg] + rule.reference)
 
 def format_sidmsgmap_v2(rule):
     """ Format a rule as a v2 sid-msg.map entry.
@@ -332,4 +500,7 @@ def format_sidmsgmap_v2(rule):
     return " || ".join([
         str(rule.gid), str(rule.sid), str(rule.rev),
         "NOCLASS" if rule.classtype is None else rule.classtype,
-        str(rule.priority), rule.msg] + rule.references)
+        str(rule.priority), rule.msg] + rule.reference)
+
+
+
